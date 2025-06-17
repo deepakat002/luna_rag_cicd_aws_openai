@@ -1,14 +1,24 @@
-# Welcome to Chainlit! 🚀🤖
+# 🌟 LUNA 🌟
+*Your Intelligent Document Assistant*
 
-Hi there, Developer! 👋 We're excited to have you on board. Chainlit is a powerful tool designed to help you prototype, debug and share applications built on top of LLMs.
+---
 
-## Useful Links 🔗
+## Welcome to LUNA!
 
-- **Documentation:** Get started with our comprehensive [Chainlit Documentation](https://docs.chainlit.io) 📚
-- **Discord Community:** Join our friendly [Chainlit Discord](https://discord.gg/k73SQ3FyUh) to ask questions, share your projects, and connect with other developers! 💬
+Luna is your powerful AI assistant that can:
 
-We can't wait to see what you create with Chainlit! Happy coding! 💻😊
+- 📚 **Search through your documents** - Ask questions about your PDF files and get accurate answers
+- 💬 **Have natural conversations** - Chat about anything, Luna remembers your name and conversation context
+- 🎯 **Smart response handling** - Luna knows when to search documents vs. when to have a casual chat
 
-## Welcome screen
+---
 
-To modify the welcome screen, edit the `chainlit.md` file at the root of your project. If you do not want a welcome screen, just leave this file empty.
+### How to Use Luna:
+
+1. **For Document Questions**: Ask specific questions about the content in your documents
+2. **For General Chat**: Say hello, introduce yourself, or ask general questions
+3. **Personal Touch**: Tell Luna your name and she'll remember it throughout your conversation
+
+---
+
+**Ready to get started? Try one of the conversation starters below or just say hello!**
