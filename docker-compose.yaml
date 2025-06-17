@@ -13,11 +13,11 @@ services:
     ports:
       - "8000:8000"
 
-    volumes:
-      - ./data:/app/data
-      - ./scripts:/app/scripts
-      - /etc/timezone:/etc/timezone
-      - /etc/localtime:/etc/localtime
+    # volumes:
+    #   - ./data:/app/data
+    #   - ./scripts:/app/scripts
+    #   - /etc/timezone:/etc/timezone
+    #   - /etc/localtime:/etc/localtime
 
     deploy:
       resources:
