@@ -39,3 +39,4 @@ faiss-cpu
 chromadb
 wikipedia
 chainlit
+pymupdf
