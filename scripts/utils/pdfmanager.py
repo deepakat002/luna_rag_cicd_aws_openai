@@ -5,13 +5,16 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyMuPDFLoader, DirectoryLoader
 from langchain.schema import Document
 from typing import List 
-import traceback
+import traceback,os
 from utils.lunaConfig import LunaConfig
 
 from utils.loggerSetup import get_logger
+from dotenv import load_dotenv
+load_dotenv()
+
 
 # Get the logger
-logger = get_logger("pdfmanager", "luna.log", console_output=False)
+logger = get_logger("pdfmanager", "luna.log", console_output=os.getenv('CMD_OUTPUT') == 't')
 
 
 class PDFProcessor:
@@ -29,17 +32,14 @@ class PDFProcessor:
         """Load all PDFs from directory using DirectoryLoader"""
         try:
             if not self.pdf_dir.exists():
-                print(f"[{datetime.now()}] PDF directory {self.pdf_dir} does not exist")
                 logger.warning(f"PDF directory {self.pdf_dir} does not exist")
                 return []
             
             pdf_files = list(self.pdf_dir.glob("*.pdf"))
             if not pdf_files:
-                print(f"[{datetime.now()}] No PDF files found in {self.pdf_dir}")
                 logger.warning(f"No PDF files found in {self.pdf_dir}")
                 return []
             
-            print(f"[{datetime.now()}] Loading {len(pdf_files)} PDF files using DirectoryLoader...")
             logger.info(f"Loading {len(pdf_files)} PDF files using DirectoryLoader...")
             
             # Use DirectoryLoader to load all PDFs
@@ -50,7 +50,7 @@ class PDFProcessor:
                 show_progress=True
             )
             
-            print(f"[{datetime.now()}] Processing PDF documents...")
+            logger.info(f"[{datetime.now()}] Processing PDF documents...")
             documents = loader.load()
             
             # Add enhanced metadata
@@ -64,12 +64,10 @@ class PDFProcessor:
                     'processor': 'DirectoryLoader'
                 })
             
-            print(f"[{datetime.now()}] Successfully loaded {len(documents)} documents from {len(pdf_files)} PDFs")
             logger.info(f"Successfully loaded {len(documents)} documents from {len(pdf_files)} PDFs")
             return documents
             
         except Exception as e:
-            print(f"[{datetime.now()}] Error loading PDFs: {str(e)}")
             logger.error(f"Error loading PDFs: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
             return []
@@ -77,16 +75,13 @@ class PDFProcessor:
     def split_documents(self, documents: List[Document]) -> List[Document]:
         """Split documents into chunks"""
         try:
-            print(f"[{datetime.now()}] Splitting {len(documents)} documents into chunks...")
             logger.info(f"Splitting {len(documents)} documents into chunks...")
             
             chunks = self.text_splitter.split_documents(documents)
             
-            print(f"[{datetime.now()}] Split {len(documents)} documents into {len(chunks)} chunks")
             logger.info(f"Split {len(documents)} documents into {len(chunks)} chunks")
             return chunks
         except Exception as e:
-            print(f"[{datetime.now()}] Error splitting documents: {str(e)}")
             logger.error(f"Error splitting documents: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
             return []

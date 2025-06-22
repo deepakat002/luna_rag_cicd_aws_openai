@@ -9,11 +9,12 @@ from langchain_openai import OpenAIEmbeddings
 from utils.loggerSetup import get_logger
 from langchain_community.vectorstores import Chroma
 from utils.lunaConfig import LunaConfig
-
+from dotenv import load_dotenv
+load_dotenv()
 
 
 # Get the logger
-logger = get_logger("chromamanager", "luna.log", console_output=False)
+logger = get_logger("chromamanager", "luna.log",console_output=os.getenv('CMD_OUTPUT') == 't')
 
 class ChromaManager:
     """Manages ChromaDB operations"""
@@ -30,11 +31,9 @@ class ChromaManager:
         """Create and populate vector store"""
         try:
             if not documents:
-                print(f"[{datetime.now()}] No documents provided for vector store creation")
                 logger.error("No documents provided for vector store creation")
                 return False
             
-            print(f"[{datetime.now()}] Creating ChromaDB vector store...")
             logger.info("Creating ChromaDB vector store...")
             
             self.vectorstore = Chroma.from_documents(
@@ -44,12 +43,10 @@ class ChromaManager:
                 collection_name="luna_dogs"
             )
             
-            print(f"[{datetime.now()}] Vector store created with {len(documents)} documents")
             logger.info(f"Vector store created with {len(documents)} documents")
             return True
             
         except Exception as e:
-            print(f"[{datetime.now()}] Error creating vector store: {str(e)}")
             logger.error(f"Error creating vector store: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
             return False
@@ -58,11 +55,9 @@ class ChromaManager:
         """Load existing vector store"""
         try:
             if not self.persist_directory.exists():
-                print(f"[{datetime.now()}] Vector store directory doesn't exist")
                 logger.warning("Vector store directory doesn't exist")
                 return False
             
-            print(f"[{datetime.now()}] Loading existing vector store...")
             logger.info("Loading existing vector store...")
             
             self.vectorstore = Chroma(
@@ -76,16 +71,13 @@ class ChromaManager:
             count = collection.count()
             
             if count > 0:
-                print(f"[{datetime.now()}] Loaded vector store with {count} documents")
                 logger.info(f"Loaded vector store with {count} documents")
                 return True
             else:
-                print(f"[{datetime.now()}] Vector store is empty")
                 logger.warning("Vector store is empty")
                 return False
             
         except Exception as e:
-            print(f"[{datetime.now()}] Error loading vector store: {str(e)}")
             logger.error(f"Error loading vector store: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
             return False
@@ -93,11 +85,9 @@ class ChromaManager:
     def get_retriever(self):
         """Get retriever for the vector store"""
         if self.vectorstore is None:
-            print(f"[{datetime.now()}] Vector store not initialized")
             logger.warning("Vector store not initialized")
             return None
         
-        print(f"[{datetime.now()}] Creating retriever with top_k={LunaConfig.TOP_K}")
         logger.info(f"Creating retriever with top_k={LunaConfig.TOP_K}")
         
         return self.vectorstore.as_retriever(

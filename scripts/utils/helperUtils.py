@@ -3,10 +3,13 @@ import random
 from datetime import datetime
 
 from utils.loggerSetup import get_logger
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 
 # Get the logger
-logger = get_logger("pdfmanager", "luna.log", console_output=False)
+logger = get_logger("pdfmanager", "luna.log", console_output=os.getenv('CMD_OUTPUT') == 't')
 
 
 class GreetingHandler:

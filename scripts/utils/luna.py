@@ -16,12 +16,14 @@ from langchain.schema import Document
 from typing import List, Tuple
 
 
+from dotenv import load_dotenv
+load_dotenv()
 
 
 from utils.loggerSetup import get_logger
 
 # Get the logger
-logger = get_logger("luna", "luna.log", console_output=False)
+logger = get_logger("luna", "luna.log",  console_output=os.getenv('CMD_OUTPUT') == 't')
 
 
 class LunaRAG:
@@ -43,24 +45,19 @@ class LunaRAG:
     def initialize_system(self) -> bool:
         """Initialize the complete RAG system before starting chat"""
         try:
-            print(f"[{datetime.now()}] Initializing Luna RAG System...")
             logger.info("Initializing Luna RAG System...")
             
             # Check API key
             if not os.getenv("OPENAI_API_KEY"):
-                print(f"[{datetime.now()}] OpenAI API key not found!")
                 logger.error("OpenAI API key not found!")
                 return False
             
-            print(f"[{datetime.now()}] OpenAI API key found")
             logger.info("OpenAI API key found")
             
             # Try to load existing vector store first
             if self.chroma_manager.load_vectorstore():
-                print(f"[{datetime.now()}] Using existing vector store")
                 logger.info("Using existing vector store")
             else:
-                print(f"[{datetime.now()}] Creating new vector store from PDFs...")
                 logger.info("Creating new vector store from PDFs...")
                 
                 # Process PDFs using DirectoryLoader
@@ -68,36 +65,29 @@ class LunaRAG:
                 documents = pdf_processor.load_pdfs()
                 
                 if not documents:
-                    print(f"[{datetime.now()}] No documents loaded. Please add PDF files to the data directory.")
                     logger.error("No documents loaded. Please add PDF files to the data directory.")
                     return False
                 
                 chunks = pdf_processor.split_documents(documents)
                 if not chunks:
-                    print(f"[{datetime.now()}] No document chunks created")
                     logger.error("No document chunks created")
                     return False
                     
                 if not self.chroma_manager.create_vectorstore(chunks):
-                    print(f"[{datetime.now()}] Failed to create vector store")
                     logger.error("Failed to create vector store")
                     return False
             
             # Setup retriever and chain
-            print(f"[{datetime.now()}] Setting up retriever...")
             logger.info("Setting up retriever...")
             
             retriever = self.chroma_manager.get_retriever()
             if retriever is None:
-                print(f"[{datetime.now()}] Failed to create retriever")
                 logger.error("Failed to create retriever")
                 return False
             
-            print(f"[{datetime.now()}] Retriever created successfully")
             logger.info("Retriever created successfully")
             
             # Create custom prompt with word limit
-            print(f"[{datetime.now()}] Setting up custom prompt template...")
             logger.info("Setting up custom prompt template...")
             
             prompt_template = f"""You are Luna, a friendly and knowledgeable dog expert assistant. Your specialty is providing helpful, accurate information about dogs, including breeds, training, health, behavior, and general care.
@@ -121,11 +111,9 @@ Luna's Response:"""
                 input_variables=["context", "chat_history", "question"]
             )
             
-            print(f"[{datetime.now()}] Custom prompt template created")
             logger.info("Custom prompt template created")
             
             # Setup memory
-            print(f"[{datetime.now()}] Setting up conversation memory...")
             logger.info("Setting up conversation memory...")
             
             self.memory = ConversationBufferWindowMemory(
@@ -135,11 +123,9 @@ Luna's Response:"""
                 output_key="answer"
             )
             
-            print(f"[{datetime.now()}] Memory configured with window size: {LunaConfig.MEMORY_WINDOW}")
             logger.info(f"Memory configured with window size: {LunaConfig.MEMORY_WINDOW}")
             
             # Create conversational retrieval chain
-            print(f"[{datetime.now()}] Creating conversational retrieval chain...")
             logger.info("Creating conversational retrieval chain...")
             
             self.chain = ConversationalRetrievalChain.from_llm(
@@ -152,16 +138,13 @@ Luna's Response:"""
                 rephrase_question=False
             )
             
-            print(f"[{datetime.now()}] Conversational chain created successfully")
             logger.info("Conversational chain created successfully")
             
             self.is_initialized = True
-            print(f"[{datetime.now()}] Luna RAG system initialization completed successfully!")
             logger.info("Luna RAG system initialization completed successfully!")
             return True
             
         except Exception as e:
-            print(f"[{datetime.now()}] Error initializing RAG system: {str(e)}")
             logger.error(f"Error initializing RAG system: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
             return False
@@ -219,16 +202,13 @@ Luna's Response:"""
         try:
             if not self.is_initialized or self.chain is None:
                 error_msg = "Sorry, the system is not properly initialized."
-                print(f"[{datetime.now()}] {error_msg}")
                 logger.error("System not initialized when trying to get response")
                 return error_msg, [], "ERROR"
             
-            print(f"[{datetime.now()}] Processing question: {question[:50]}...")
-            logger.info(f"Processing question from session {session_id}")
+            logger.info(f"Processing question  {question[:50]} from session {session_id}")
             
             # Check if it's a greeting first
             if self.greeting_handler.is_greeting(question):
-                print(f"[{datetime.now()}] Detected greeting, responding without vector search")
                 logger.info("Detected greeting, responding without vector search")
                 
                 greeting_response = self.greeting_handler.get_greeting_response(question)
@@ -242,13 +222,11 @@ Luna's Response:"""
                     self.memory.chat_memory.add_user_message(question)
                     self.memory.chat_memory.add_ai_message(greeting_response)
                 
-                print(f"[{datetime.now()}] Greeting response: {greeting_response}")
-                logger.info(f"Greeting response provided")
+                logger.info(f"Greeting response {greeting_response} provided")
                 
                 return greeting_response, [], "GREETING"
             
             # For non-greetings, proceed with normal RAG processing
-            print(f"[{datetime.now()}] Non-greeting detected, proceeding with RAG search")
             logger.info("Non-greeting detected, proceeding with RAG search")
             
             # Get response from RAG
@@ -262,33 +240,22 @@ Luna's Response:"""
             # Log the final prompt and response details
             context = "\n".join([doc.page_content[:200] + "..." for doc in sources[:3]]) if sources else "No relevant context found"
             final_prompt = self._construct_final_prompt(question, context)
-            
-            print("\n" + "="*80)
-            print(f"[{datetime.now()}] FINAL INPUT PROMPT TO MODEL:")
-            print("="*80)
-            print(final_prompt)
-            print("="*80)
-            print(f"[{datetime.now()}] MODEL RESPONSE: {answer}")
-            print(f"[{datetime.now()}] RESPONSE SOURCE: {response_source}")
-            print(f"[{datetime.now()}] NUMBER OF SOURCES: {len(sources)}")
-            print("="*80 + "\n")
-            
+                        
             # Log to file
-            logger.info("="*80)
+            logger.info("\n" + "="*80)
             logger.info("FINAL INPUT PROMPT TO MODEL:")
+            logger.info("="*80)
             logger.info(final_prompt)
             logger.info("="*80)
             logger.info(f"MODEL RESPONSE: {answer}")
             logger.info(f"RESPONSE SOURCE: {response_source}")
             logger.info(f"NUMBER OF SOURCES: {len(sources)}")
-            logger.info("="*80)
+            logger.info("="*80 + "\n")
             
             # Count words in response
             word_count = len(answer.split())
-            print(f"[{datetime.now()}] Response word count: {word_count}/{LunaConfig.MAX_RESPONSE_WORDS}")
             logger.info(f"Response word count: {word_count}/{LunaConfig.MAX_RESPONSE_WORDS}")
             
-            print(f"[{datetime.now()}] Generated response with {len(sources)} source documents")
             logger.info(f"Generated response with {len(sources)} source documents")
             
             # Save to history
@@ -299,7 +266,6 @@ Luna's Response:"""
             
         except Exception as e:
             error_msg = f"Sorry, I encountered an error: {str(e)}"
-            print(f"[{datetime.now()}] Error getting response: {str(e)}")
             logger.error(f"Error getting response: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
             return error_msg, [], "ERROR"
@@ -307,7 +273,6 @@ Luna's Response:"""
     def load_session_history(self, session_id: str):
         """Load chat history for a session"""
         try:
-            print(f"[{datetime.now()}] Loading session history for: {session_id}")
             logger.info(f"Loading session history for: {session_id}")
             
             history = self.history_manager.load_history(session_id)
@@ -315,7 +280,6 @@ Luna's Response:"""
             # Clear current memory
             if self.memory:
                 self.memory.clear()
-                print(f"[{datetime.now()}] Cleared existing memory")
                 logger.info("Cleared existing memory")
             
             # Add history to memory
@@ -325,10 +289,8 @@ Luna's Response:"""
                 elif entry["role"] == "ai":  # Changed from "assistant" to "ai"
                     self.memory.chat_memory.add_ai_message(entry["content"])
             
-            print(f"[{datetime.now()}] Loaded {len(history)} messages into memory")
             logger.info(f"Loaded {len(history)} messages into memory")
                     
         except Exception as e:
-            print(f"[{datetime.now()}] Error loading session history: {str(e)}")
             logger.error(f"Error loading session history: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")

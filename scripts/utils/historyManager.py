@@ -3,14 +3,16 @@
 from datetime import datetime
 from pathlib import Path
 from typing import List 
-import traceback
+import traceback, os
 from utils.lunaConfig import LunaConfig
 from typing import List, Dict
 
 from utils.loggerSetup import get_logger
+from dotenv import load_dotenv
+load_dotenv()
 
 # Get the logger
-logger = get_logger("historymanager", "luna.log", console_output=False)
+logger = get_logger("historymanager", "luna.log", console_output=os.getenv('CMD_OUTPUT') == 't')
 
 
 
@@ -33,11 +35,9 @@ class ChatHistoryManager:
             with open(file_path, "a", encoding="utf-8") as f:
                 f.write(f"[{timestamp}] {role.upper()}: {content}\n")
                 
-            print(f"[{datetime.now()}] Saved {role} message to history")
             logger.info(f"Saved {role} message to history for session {session_id}")
                 
         except Exception as e:
-            print(f"[{datetime.now()}] Error saving message: {str(e)}")
             logger.error(f"Error saving message: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
     
@@ -46,7 +46,6 @@ class ChatHistoryManager:
         try:
             file_path = self.get_session_file(session_id)
             if not file_path.exists():
-                print(f"[{datetime.now()}] No existing history for session {session_id}")
                 logger.info(f"No existing history for session {session_id}")
                 return []
             
@@ -69,12 +68,10 @@ class ChatHistoryManager:
                                 })
             
             recent_history = history[-LunaConfig.MEMORY_WINDOW*2:]  # Keep recent messages
-            print(f"[{datetime.now()}] Loaded {len(recent_history)} recent messages from history")
             logger.info(f"Loaded {len(recent_history)} recent messages from history for session {session_id}")
             return recent_history
             
         except Exception as e:
-            print(f"[{datetime.now()}] Error loading history: {str(e)}")
             logger.error(f"Error loading history: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
             return []
