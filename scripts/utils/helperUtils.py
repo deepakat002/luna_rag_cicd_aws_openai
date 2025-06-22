@@ -1,6 +1,9 @@
 import re
 import random
+from datetime import datetime
+
 from utils.loggerSetup import get_logger
+
 
 # Get the logger
 logger = get_logger("pdfmanager", "luna.log", console_output=False)
@@ -90,7 +93,41 @@ class GreetingHandler:
         return random.choice(self.greeting_responses)
 
 
-
+def log_with_boxed_format(logger):
+    now = datetime.now()
+    timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
+    hour = now.hour
+    
+    # Determine greeting based on time
+    if 5 <= hour < 12:
+        greeting = "Good morning!"
+    elif 12 <= hour < 17:
+        greeting = "Good afternoon!"
+    elif 17 <= hour < 22:
+        greeting = "Good evening!"
+    else:
+        greeting = "Good night!"
+    
+    art = f"""
+    ╔══════════════════════════════════════════════════════════╗
+                           LUNA 🦴                           
+    ╠══════════════════════════════════════════════════════════╣
+      Time: {timestamp}                                   
+      Status: Waking up... 🐶                                
+      Action: Initializing system 🐾                         
+                                                             
+               /\_____/\                                     
+              /  o   o  \     *yawn* {greeting}!!         
+             ( ==  ^  == )                                   
+              )         (                                    
+             (           )                                   
+            ( (  )   (  ) )                                  
+           (__(__)___(__)__)                                 
+    ╚══════════════════════════════════════════════════════════╝
+    """
+    
+    logger.info(art)
+    
 
 
 

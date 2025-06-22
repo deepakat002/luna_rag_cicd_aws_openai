@@ -1,9 +1,9 @@
-# 🌟 LUNA 🌟
-*Your Intelligent Document Assistant*
+# 🐶 LUNA 🐶 
+*Your Intelligent Dog Assistant*
 
 ---
 
-## Welcome to LUNA!
+## Hi, I am LUNA 🐶 !
 
 Luna is your powerful AI assistant that can:
 

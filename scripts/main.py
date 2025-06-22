@@ -13,12 +13,16 @@ from datetime import datetime
 import chainlit as cl
 from utils.lunaConfig import LunaConfig
 from utils.luna import LunaRAG
+from utils.helperUtils import log_with_boxed_format
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 from utils.loggerSetup import get_logger
 
 
 # Get the logger
-logger = get_logger(__name__, "luna.log", console_output=False)
+logger = get_logger(__name__, "luna.log", console_output=os.getenv('CMD_OUTPUT') == 't')
 
 
 
@@ -26,27 +30,22 @@ logger = get_logger(__name__, "luna.log", console_output=False)
 def initialize_luna_before_chat(luna_rag):
     """Initialize Luna system before starting the chat interface"""
     
-    print(f"[{datetime.now()}] Pre-initializing Luna system...")
     logger.info("Pre-initializing Luna system...")
     
     try:
         # Setup directories
         LunaConfig.setup_directories()
-        print(f"[{datetime.now()}] Directories set up")
         logger.info("Directories set up")
         
         # Initialize RAG system
         luna_rag = LunaRAG()
         if luna_rag.initialize_system():
-            print(f"[{datetime.now()}] Luna system ready for chat!")
             logger.info("Luna system ready for chat!")
             return luna_rag, True
         else:
-            print(f"[{datetime.now()}] Failed to initialize Luna system")
             logger.error("Failed to initialize Luna system")
             return luna_rag, False
     except Exception as e:
-        print(f"[{datetime.now()}] Error during initialization: {str(e)}")
         logger.error(f"Error during initialization: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         return luna_rag, False
@@ -55,17 +54,17 @@ def initialize_luna_before_chat(luna_rag):
 luna_rag = None
 
 # Auto-initialize when module is imported (for Chainlit)
-print(f"\n\n[{datetime.now()}] Welcome! Luna 🐶 is waking up :) Initializing...\n\n")
-logger.info(f"\n\n[{datetime.now()}] Welcome! Luna 🐶 is waking up :) Initializing...\n\n")
+# logger.info(f"\n\n[{datetime.now()}] Welcome! Luna 🐶 is waking up :) Initializing...\n\n")
+
+log_with_boxed_format(logger)
 
 try:
     luna_rag, active = initialize_luna_before_chat(luna_rag)
     if active:
-        print(f"[{datetime.now()}] Luna system auto-initialized successfully!")
+        logger.info(f"[{datetime.now()}] Luna system auto-initialized successfully!")
     else:
-        print(f"[{datetime.now()}] Luna system auto-initialization failed!")
+        logger.info(f"[{datetime.now()}] Luna system auto-initialization failed!")
 except Exception as e:
-    print(f"[{datetime.now()}] Error during auto-initialization: {str(e)}")
     logger.error(f"Error during auto-initialization: {str(e)}")
     logger.error(f"Traceback: {traceback.format_exc()}")
 
@@ -80,7 +79,6 @@ async def start():
         
         # Check if system is pre-initialized, if not try to initialize
         if luna_rag is None or not luna_rag.is_initialized:
-            print(f"[{datetime.now()}] System not initialized, attempting initialization...")
             logger.info("System not initialized, attempting initialization...")
             
             # Show loading message
@@ -109,7 +107,6 @@ async def start():
         # Store session ID consistently
         cl.user_session.set("session_id", session_id)
         
-        print(f"[{datetime.now()}] Chat session ID: {session_id}")
         logger.info(f"Chat session ID: {session_id}")
         
         # Load existing history if any
@@ -129,7 +126,6 @@ What would you like to know about dogs today? 🐾"""
         await cl.Message(content=welcome_msg, author="Luna").send()
         
     except Exception as e:
-        print(f"[{datetime.now()}] Error in chat start: {str(e)}")
         logger.error(f"Error in chat start: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         await cl.Message(
@@ -146,7 +142,6 @@ async def main(message: cl.Message):
         global luna_rag 
         global conv
         conv +=1
-        print(f"\n\n ==============x============= conversation :{conv} ==============x============= \n\n")
         logger.info(f"\n\n ==============x============= conversation :{conv} ==============x============= \n\n")
         
         session_id = cl.user_session.get("session_id")
@@ -166,14 +161,12 @@ async def main(message: cl.Message):
         
         # Check if it's a greeting - if so, don't show thinking indicator
         if luna_rag.greeting_handler.is_greeting(message.content):
-            print(f"[{datetime.now()}] Greeting detected, responding immediately")
             logger.info("Greeting detected, responding immediately")
         else:
             # Show thinking indicator only for non-greetings
             thinking_msg = cl.Message(content="🤔 Thinking...", author="Luna")
             await thinking_msg.send()
         
-        print(f"[{datetime.now()}] Processing message from session: {session_id}")
         logger.info(f"Processing message from session: {session_id}")
         
         # Get response from RAG system (now with greeting handling)
@@ -188,12 +181,10 @@ async def main(message: cl.Message):
             # Send greeting response directly
             await cl.Message(content=answer, author="Luna").send()
         
-        print(f"[{datetime.now()}] Response sent - Source: {response_source}")
         logger.info(f"Response sent - Source: {response_source}")
 
     except Exception as e:
-        print(f"[{datetime.now()}]❌ Error handling message: {str(e)}")
-        logger.error(f"Error handling message: {str(e)}")
+        logger.error(f"❌ Error handling message: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         await cl.Message(
             content=f"🐕 Woof! I encountered an error: {str(e)}\n\nPlease try asking your question again!",
@@ -206,9 +197,7 @@ async def end():
     try:
         session_id = cl.user_session.get("session_id")
         if session_id:
-            print(f"👋 Chat session ended: {session_id}")
             logger.info(f"Chat session ended: {session_id}")
     except Exception as e:
-        print(f"❌ Error in chat end: {str(e)}")
-        logger.error(f"Error in chat end: {str(e)}")
+        logger.error(f"❌ Error in chat end: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
