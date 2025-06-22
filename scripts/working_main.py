@@ -24,7 +24,7 @@ from langchain.chains import ConversationalRetrievalChain
 from langchain.prompts import PromptTemplate
 import chromadb
 from chromadb.config import Settings
-from utils.logger_setup import get_logger
+from utils.loggerSetup import get_logger
 import re
 
 # Get the logger
