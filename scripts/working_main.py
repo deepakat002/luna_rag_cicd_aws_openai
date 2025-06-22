@@ -6,15 +6,11 @@ Uses ChromaDB, LangChain, and Chainlit with persistent chat history
 """
 
 import os
-import sys
-import json
 import uuid
-import logging
-import traceback
+import traceback,random
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
-import asyncio
 
 # Core dependencies
 import chainlit as cl
@@ -29,8 +25,96 @@ from langchain.prompts import PromptTemplate
 import chromadb
 from chromadb.config import Settings
 from utils.logger_setup import get_logger
+import re
+
 # Get the logger
 logger = get_logger(__name__, "luna.log", console_output=False)
+
+
+
+class GreetingHandler:
+    """Handles greeting detection and responses"""
+    
+    def __init__(self):
+        # Define greeting patterns
+        self.greeting_patterns = [
+            r'^(hi|hello|hey|good morning|good afternoon|good evening|greetings?)\.?$',
+            r'^(hi|hello|hey)\s+(there|luna|dog|bot)\.?$',
+            r'^(what\'s up|whats up|sup|yo)\.?$',
+            r'^(good day|howdy)\.?$'
+        ]
+        
+        # Define how are you patterns
+        self.how_are_you_patterns = [
+            r'^(how are you|how\'re you|how r u|how do you do)\??\.?$',
+            r'^(how are you doing|how\'s it going|how is it going)\??\.?$',
+            r'^(how are things|how\'s everything|how is everything)\??\.?$',
+            r'^(are you (okay|ok|good|well))\??\.?$'
+        ]
+        
+        # Define combined greeting + how are you patterns
+        self.greeting_with_inquiry_patterns = [
+            r'^(hi|hello|hey),?\s+(how are you|how\'re you|how r u)\??\.?$',
+            r'^(hi|hello|hey)\s+(there|luna),?\s+(how are you|how\'s it going)\??\.?$'
+        ]
+        
+        # Greeting responses
+        self.greeting_responses = [
+            "Hello! 🐕 I'm Luna, your friendly dog expert! How can I help you with your dog questions today?",
+            "Hi there! 🐾 I'm Luna, and I love talking about dogs! What would you like to know?",
+            "Hey! 🐶 Luna here, ready to help with all your dog-related questions!",
+            "Hello! 🦴 I'm Luna, your dog expert companion. What can I help you learn about dogs today?"
+        ]
+        
+        # How are you responses
+        self.how_are_you_responses = [
+            "I'm doing great, thank you for asking! 🐕 I'm always excited to help with dog questions. How can I assist you today?",
+            "I'm wonderful! 🐾 I love helping people learn about dogs. What would you like to know about our furry friends?",
+            "I'm fantastic! 🐶 Always ready to share dog knowledge. What dog topic interests you most?",
+            "I'm doing well, thanks! 🦴 I'm here and ready to help with any dog questions you have!"
+        ]
+        
+        # Combined greeting responses
+        self.combined_responses = [
+            "Hello! 🐕 I'm doing great, thank you! I'm Luna, your dog expert assistant. What would you like to know about dogs today?",
+            "Hi there! 🐾 I'm wonderful, thanks for asking! I'm here to help with all your dog questions. How can I assist you?",
+            "Hey! 🐶 I'm fantastic! I'm Luna, and I love helping people learn about dogs. What can I help you with today?"
+        ]
+    
+    def is_greeting(self, message: str) -> bool:
+        """Check if message is a greeting"""
+        message_clean = message.lower().strip()
+        
+        # Check all greeting patterns
+        for pattern in (self.greeting_patterns + self.how_are_you_patterns + 
+                       self.greeting_with_inquiry_patterns):
+            if re.match(pattern, message_clean):
+                return True
+        
+        return False
+    
+    def get_greeting_response(self, message: str) -> str:
+        """Get appropriate greeting response"""
+        message_clean = message.lower().strip()
+        
+        # Check for combined greeting + inquiry
+        for pattern in self.greeting_with_inquiry_patterns:
+            if re.match(pattern, message_clean):
+                return random.choice(self.combined_responses)
+        
+        # Check for how are you
+        for pattern in self.how_are_you_patterns:
+            if re.match(pattern, message_clean):
+                return random.choice(self.how_are_you_responses)
+        
+        # Check for simple greeting
+        for pattern in self.greeting_patterns:
+            if re.match(pattern, message_clean):
+                return random.choice(self.greeting_responses)
+        
+        # Fallback (shouldn't reach here if is_greeting returned True)
+        return random.choice(self.greeting_responses)
+
 
 # Configuration
 class LunaConfig:
@@ -43,7 +127,7 @@ class LunaConfig:
     HISTORY_DIR = DATA_DIR / "chat_history"
     
     # Model settings
-    OPENAI_MODEL =  "gpt-4o-mini" #"gpt-3.5-turbo" # "gpt-4o-mini"
+    OPENAI_MODEL = "gpt-3.5-turbo"# "gpt-4o-mini" #"gpt-3.5-turbo" # "gpt-4o-mini"
     EMBEDDING_MODEL = "text-embedding-3-small"
     
     # Chunk settings
@@ -65,8 +149,6 @@ class LunaConfig:
         for dir_path in [cls.PDF_DIR, cls.CHROMA_DIR, cls.HISTORY_DIR]:
             dir_path.mkdir(parents=True, exist_ok=True)
 
-
-
 class PDFProcessor:
     """Handles PDF loading and text processing using DirectoryLoader"""
     
@@ -82,17 +164,17 @@ class PDFProcessor:
         """Load all PDFs from directory using DirectoryLoader"""
         try:
             if not self.pdf_dir.exists():
-                print(f"⚠️  PDF directory {self.pdf_dir} does not exist")
+                print(f"[{datetime.now()}] PDF directory {self.pdf_dir} does not exist")
                 logger.warning(f"PDF directory {self.pdf_dir} does not exist")
                 return []
             
             pdf_files = list(self.pdf_dir.glob("*.pdf"))
             if not pdf_files:
-                print(f"⚠️  No PDF files found in {self.pdf_dir}")
+                print(f"[{datetime.now()}] No PDF files found in {self.pdf_dir}")
                 logger.warning(f"No PDF files found in {self.pdf_dir}")
                 return []
             
-            print(f"📚 Loading {len(pdf_files)} PDF files using DirectoryLoader...")
+            print(f"[{datetime.now()}] Loading {len(pdf_files)} PDF files using DirectoryLoader...")
             logger.info(f"Loading {len(pdf_files)} PDF files using DirectoryLoader...")
             
             # Use DirectoryLoader to load all PDFs
@@ -103,7 +185,7 @@ class PDFProcessor:
                 show_progress=True
             )
             
-            print("🔄 Processing PDF documents...")
+            print(f"[{datetime.now()}] Processing PDF documents...")
             documents = loader.load()
             
             # Add enhanced metadata
@@ -117,12 +199,12 @@ class PDFProcessor:
                     'processor': 'DirectoryLoader'
                 })
             
-            print(f"✅ Successfully loaded {len(documents)} documents from {len(pdf_files)} PDFs")
+            print(f"[{datetime.now()}] Successfully loaded {len(documents)} documents from {len(pdf_files)} PDFs")
             logger.info(f"Successfully loaded {len(documents)} documents from {len(pdf_files)} PDFs")
             return documents
             
         except Exception as e:
-            print(f"❌ Error loading PDFs: {str(e)}")
+            print(f"[{datetime.now()}] Error loading PDFs: {str(e)}")
             logger.error(f"Error loading PDFs: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
             return []
@@ -130,16 +212,16 @@ class PDFProcessor:
     def split_documents(self, documents: List[Document]) -> List[Document]:
         """Split documents into chunks"""
         try:
-            print(f"✂️  Splitting {len(documents)} documents into chunks...")
+            print(f"[{datetime.now()}] Splitting {len(documents)} documents into chunks...")
             logger.info(f"Splitting {len(documents)} documents into chunks...")
             
             chunks = self.text_splitter.split_documents(documents)
             
-            print(f"✅ Split {len(documents)} documents into {len(chunks)} chunks")
+            print(f"[{datetime.now()}] Split {len(documents)} documents into {len(chunks)} chunks")
             logger.info(f"Split {len(documents)} documents into {len(chunks)} chunks")
             return chunks
         except Exception as e:
-            print(f"❌ Error splitting documents: {str(e)}")
+            print(f"[{datetime.now()}] Error splitting documents: {str(e)}")
             logger.error(f"Error splitting documents: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
             return []
@@ -159,11 +241,11 @@ class ChromaManager:
         """Create and populate vector store"""
         try:
             if not documents:
-                print("❌ No documents provided for vector store creation")
+                print(f"[{datetime.now()}] No documents provided for vector store creation")
                 logger.error("No documents provided for vector store creation")
                 return False
             
-            print("🔄 Creating ChromaDB vector store...")
+            print(f"[{datetime.now()}] Creating ChromaDB vector store...")
             logger.info("Creating ChromaDB vector store...")
             
             self.vectorstore = Chroma.from_documents(
@@ -173,12 +255,12 @@ class ChromaManager:
                 collection_name="luna_dogs"
             )
             
-            print(f"✅ Vector store created with {len(documents)} documents")
+            print(f"[{datetime.now()}] Vector store created with {len(documents)} documents")
             logger.info(f"Vector store created with {len(documents)} documents")
             return True
             
         except Exception as e:
-            print(f"❌ Error creating vector store: {str(e)}")
+            print(f"[{datetime.now()}] Error creating vector store: {str(e)}")
             logger.error(f"Error creating vector store: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
             return False
@@ -187,11 +269,11 @@ class ChromaManager:
         """Load existing vector store"""
         try:
             if not self.persist_directory.exists():
-                print("⚠️  Vector store directory doesn't exist")
+                print(f"[{datetime.now()}] Vector store directory doesn't exist")
                 logger.warning("Vector store directory doesn't exist")
                 return False
             
-            print("🔄 Loading existing vector store...")
+            print(f"[{datetime.now()}] Loading existing vector store...")
             logger.info("Loading existing vector store...")
             
             self.vectorstore = Chroma(
@@ -205,16 +287,16 @@ class ChromaManager:
             count = collection.count()
             
             if count > 0:
-                print(f"✅ Loaded vector store with {count} documents")
+                print(f"[{datetime.now()}] Loaded vector store with {count} documents")
                 logger.info(f"Loaded vector store with {count} documents")
                 return True
             else:
-                print("⚠️  Vector store is empty")
+                print(f"[{datetime.now()}] Vector store is empty")
                 logger.warning("Vector store is empty")
                 return False
             
         except Exception as e:
-            print(f"❌ Error loading vector store: {str(e)}")
+            print(f"[{datetime.now()}] Error loading vector store: {str(e)}")
             logger.error(f"Error loading vector store: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
             return False
@@ -222,11 +304,11 @@ class ChromaManager:
     def get_retriever(self):
         """Get retriever for the vector store"""
         if self.vectorstore is None:
-            print("⚠️  Vector store not initialized")
+            print(f"[{datetime.now()}] Vector store not initialized")
             logger.warning("Vector store not initialized")
             return None
         
-        print(f"🔍 Creating retriever with top_k={LunaConfig.TOP_K}")
+        print(f"[{datetime.now()}] Creating retriever with top_k={LunaConfig.TOP_K}")
         logger.info(f"Creating retriever with top_k={LunaConfig.TOP_K}")
         
         return self.vectorstore.as_retriever(
@@ -253,11 +335,11 @@ class ChatHistoryManager:
             with open(file_path, "a", encoding="utf-8") as f:
                 f.write(f"[{timestamp}] {role.upper()}: {content}\n")
                 
-            print(f"💾 Saved {role} message to history")
+            print(f"[{datetime.now()}] Saved {role} message to history")
             logger.info(f"Saved {role} message to history for session {session_id}")
                 
         except Exception as e:
-            print(f"❌ Error saving message: {str(e)}")
+            print(f"[{datetime.now()}] Error saving message: {str(e)}")
             logger.error(f"Error saving message: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
     
@@ -266,7 +348,7 @@ class ChatHistoryManager:
         try:
             file_path = self.get_session_file(session_id)
             if not file_path.exists():
-                print(f"📝 No existing history for session {session_id}")
+                print(f"[{datetime.now()}] No existing history for session {session_id}")
                 logger.info(f"No existing history for session {session_id}")
                 return []
             
@@ -289,22 +371,23 @@ class ChatHistoryManager:
                                 })
             
             recent_history = history[-LunaConfig.MEMORY_WINDOW*2:]  # Keep recent messages
-            print(f"📚 Loaded {len(recent_history)} recent messages from history")
+            print(f"[{datetime.now()}] Loaded {len(recent_history)} recent messages from history")
             logger.info(f"Loaded {len(recent_history)} recent messages from history for session {session_id}")
             return recent_history
             
         except Exception as e:
-            print(f"❌ Error loading history: {str(e)}")
+            print(f"[{datetime.now()}] Error loading history: {str(e)}")
             logger.error(f"Error loading history: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
             return []
 
 class LunaRAG:
-    """Main RAG system for Luna"""
+    """Main RAG system for Luna with greeting support"""
     
     def __init__(self):
         self.chroma_manager = ChromaManager(LunaConfig.CHROMA_DIR)
         self.history_manager = ChatHistoryManager(LunaConfig.HISTORY_DIR)
+        self.greeting_handler = GreetingHandler()  # Add greeting handler
         self.llm = ChatOpenAI(
             model=LunaConfig.OPENAI_MODEL,
             temperature=0.3,
@@ -317,24 +400,24 @@ class LunaRAG:
     def initialize_system(self) -> bool:
         """Initialize the complete RAG system before starting chat"""
         try:
-            print("🐕 Initializing Luna RAG System...")
+            print(f"[{datetime.now()}] Initializing Luna RAG System...")
             logger.info("Initializing Luna RAG System...")
             
             # Check API key
             if not os.getenv("OPENAI_API_KEY"):
-                print("❌ OpenAI API key not found!")
+                print(f"[{datetime.now()}] OpenAI API key not found!")
                 logger.error("OpenAI API key not found!")
                 return False
             
-            print("✅ OpenAI API key found")
+            print(f"[{datetime.now()}] OpenAI API key found")
             logger.info("OpenAI API key found")
             
             # Try to load existing vector store first
             if self.chroma_manager.load_vectorstore():
-                print("✅ Using existing vector store")
+                print(f"[{datetime.now()}] Using existing vector store")
                 logger.info("Using existing vector store")
             else:
-                print("🔄 Creating new vector store from PDFs...")
+                print(f"[{datetime.now()}] Creating new vector store from PDFs...")
                 logger.info("Creating new vector store from PDFs...")
                 
                 # Process PDFs using DirectoryLoader
@@ -342,41 +425,41 @@ class LunaRAG:
                 documents = pdf_processor.load_pdfs()
                 
                 if not documents:
-                    print("❌ No documents loaded. Please add PDF files to the data directory.")
+                    print(f"[{datetime.now()}] No documents loaded. Please add PDF files to the data directory.")
                     logger.error("No documents loaded. Please add PDF files to the data directory.")
                     return False
                 
                 chunks = pdf_processor.split_documents(documents)
                 if not chunks:
-                    print("❌ No document chunks created")
+                    print(f"[{datetime.now()}] No document chunks created")
                     logger.error("No document chunks created")
                     return False
                     
                 if not self.chroma_manager.create_vectorstore(chunks):
-                    print("❌ Failed to create vector store")
+                    print(f"[{datetime.now()}] Failed to create vector store")
                     logger.error("Failed to create vector store")
                     return False
             
             # Setup retriever and chain
-            print("🔍 Setting up retriever...")
+            print(f"[{datetime.now()}] Setting up retriever...")
             logger.info("Setting up retriever...")
             
             retriever = self.chroma_manager.get_retriever()
             if retriever is None:
-                print("❌ Failed to create retriever")
+                print(f"[{datetime.now()}] Failed to create retriever")
                 logger.error("Failed to create retriever")
                 return False
             
-            print("✅ Retriever created successfully")
+            print(f"[{datetime.now()}] Retriever created successfully")
             logger.info("Retriever created successfully")
             
             # Create custom prompt with word limit
-            print("📝 Setting up custom prompt template...")
+            print(f"[{datetime.now()}] Setting up custom prompt template...")
             logger.info("Setting up custom prompt template...")
             
             prompt_template = f"""You are Luna, a friendly and knowledgeable dog expert assistant. Your specialty is providing helpful, accurate information about dogs, including breeds, training, health, behavior, and general care.
 
-Use the following context from dog-related documents to answer the user's question. If the context doesn't contain relevant information, respond with "I don't have sufficient information about that topic in my knowledge base. Please ask me anything else about dogs!"
+Use the following context from dog-related documents and Chat History to answer the user's question. If the context and Chat History don't contain relevant information, respond with "I don't have sufficient information about that topic in my knowledge base. Please ask me anything else about dogs!"
 
 Context from documents:
 {{context}}
@@ -395,11 +478,11 @@ Luna's Response:"""
                 input_variables=["context", "chat_history", "question"]
             )
             
-            print("✅ Custom prompt template created")
+            print(f"[{datetime.now()}] Custom prompt template created")
             logger.info("Custom prompt template created")
             
             # Setup memory
-            print("🧠 Setting up conversation memory...")
+            print(f"[{datetime.now()}] Setting up conversation memory...")
             logger.info("Setting up conversation memory...")
             
             self.memory = ConversationBufferWindowMemory(
@@ -409,11 +492,11 @@ Luna's Response:"""
                 output_key="answer"
             )
             
-            print(f"✅ Memory configured with window size: {LunaConfig.MEMORY_WINDOW}")
+            print(f"[{datetime.now()}] Memory configured with window size: {LunaConfig.MEMORY_WINDOW}")
             logger.info(f"Memory configured with window size: {LunaConfig.MEMORY_WINDOW}")
             
             # Create conversational retrieval chain
-            print("⛓️  Creating conversational retrieval chain...")
+            print(f"[{datetime.now()}] Creating conversational retrieval chain...")
             logger.info("Creating conversational retrieval chain...")
             
             self.chain = ConversationalRetrievalChain.from_llm(
@@ -425,16 +508,16 @@ Luna's Response:"""
                 verbose=True
             )
             
-            print("✅ Conversational chain created successfully")
+            print(f"[{datetime.now()}] Conversational chain created successfully")
             logger.info("Conversational chain created successfully")
             
             self.is_initialized = True
-            print("🎉 Luna RAG system initialization completed successfully!")
+            print(f"[{datetime.now()}] Luna RAG system initialization completed successfully!")
             logger.info("Luna RAG system initialization completed successfully!")
             return True
             
         except Exception as e:
-            print(f"❌ Error initializing RAG system: {str(e)}")
+            print(f"[{datetime.now()}] Error initializing RAG system: {str(e)}")
             logger.error(f"Error initializing RAG system: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
             return False
@@ -458,7 +541,7 @@ Luna's Response:"""
         
         final_prompt = f"""You are Luna, a friendly and knowledgeable dog expert assistant. Your specialty is providing helpful, accurate information about dogs, including breeds, training, health, behavior, and general care.
 
-Use the following context from dog-related documents to answer the user's question. If the context doesn't contain relevant information, respond with "I don't have sufficient information about that topic in my knowledge base. Please ask me anything else about dogs!"
+Use the following context from dog-related documents and Chat History to answer the user's question. If the context and Chat History don't contain relevant information, respond with "I don't have sufficient information about that topic in my knowledge base. Please ask me anything else about dogs!"
 
 Context from documents:
 {context}
@@ -488,18 +571,43 @@ Luna's Response:"""
         return "PDF_SEARCH"
     
     def get_response(self, question: str, session_id: str) -> Tuple[str, List[Document], str]:
-        """Get response from RAG system"""
+        """Get response from RAG system with greeting handling"""
         try:
             if not self.is_initialized or self.chain is None:
                 error_msg = "Sorry, the system is not properly initialized."
-                print(f"⚠️  {error_msg}")
+                print(f"[{datetime.now()}] {error_msg}")
                 logger.error("System not initialized when trying to get response")
                 return error_msg, [], "ERROR"
             
-            print(f"🤔 Processing question: {question[:50]}...")
+            print(f"[{datetime.now()}] Processing question: {question[:50]}...")
             logger.info(f"Processing question from session {session_id}")
             
-            # Get response
+            # Check if it's a greeting first
+            if self.greeting_handler.is_greeting(question):
+                print(f"[{datetime.now()}] Detected greeting, responding without vector search")
+                logger.info("Detected greeting, responding without vector search")
+                
+                greeting_response = self.greeting_handler.get_greeting_response(question)
+                
+                # Still save to history
+                self.history_manager.save_message(session_id, "user", question)
+                self.history_manager.save_message(session_id, "ai", greeting_response)
+                
+                # Add to memory for conversation context
+                if self.memory:
+                    self.memory.chat_memory.add_user_message(question)
+                    self.memory.chat_memory.add_ai_message(greeting_response)
+                
+                print(f"[{datetime.now()}] Greeting response: {greeting_response}")
+                logger.info(f"Greeting response provided")
+                
+                return greeting_response, [], "GREETING"
+            
+            # For non-greetings, proceed with normal RAG processing
+            print(f"[{datetime.now()}] Non-greeting detected, proceeding with RAG search")
+            logger.info("Non-greeting detected, proceeding with RAG search")
+            
+            # Get response from RAG
             result = self.chain({"question": question})
             answer = result.get("answer", "I couldn't generate a response.")
             sources = result.get("source_documents", [])
@@ -512,13 +620,13 @@ Luna's Response:"""
             final_prompt = self._construct_final_prompt(question, context)
             
             print("\n" + "="*80)
-            print("📝 FINAL INPUT PROMPT TO MODEL:")
+            print(f"[{datetime.now()}] FINAL INPUT PROMPT TO MODEL:")
             print("="*80)
             print(final_prompt)
             print("="*80)
-            print(f"🤖 MODEL RESPONSE: {answer}")
-            print(f"📊 RESPONSE SOURCE: {response_source}")
-            print(f"📚 NUMBER OF SOURCES: {len(sources)}")
+            print(f"[{datetime.now()}] MODEL RESPONSE: {answer}")
+            print(f"[{datetime.now()}] RESPONSE SOURCE: {response_source}")
+            print(f"[{datetime.now()}] NUMBER OF SOURCES: {len(sources)}")
             print("="*80 + "\n")
             
             # Log to file
@@ -533,10 +641,10 @@ Luna's Response:"""
             
             # Count words in response
             word_count = len(answer.split())
-            print(f"📝 Response word count: {word_count}/{LunaConfig.MAX_RESPONSE_WORDS}")
+            print(f"[{datetime.now()}] Response word count: {word_count}/{LunaConfig.MAX_RESPONSE_WORDS}")
             logger.info(f"Response word count: {word_count}/{LunaConfig.MAX_RESPONSE_WORDS}")
             
-            print(f"✅ Generated response with {len(sources)} source documents")
+            print(f"[{datetime.now()}] Generated response with {len(sources)} source documents")
             logger.info(f"Generated response with {len(sources)} source documents")
             
             # Save to history
@@ -547,7 +655,7 @@ Luna's Response:"""
             
         except Exception as e:
             error_msg = f"Sorry, I encountered an error: {str(e)}"
-            print(f"❌ Error getting response: {str(e)}")
+            print(f"[{datetime.now()}] Error getting response: {str(e)}")
             logger.error(f"Error getting response: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
             return error_msg, [], "ERROR"
@@ -555,7 +663,7 @@ Luna's Response:"""
     def load_session_history(self, session_id: str):
         """Load chat history for a session"""
         try:
-            print(f"📚 Loading session history for: {session_id}")
+            print(f"[{datetime.now()}] Loading session history for: {session_id}")
             logger.info(f"Loading session history for: {session_id}")
             
             history = self.history_manager.load_history(session_id)
@@ -563,7 +671,7 @@ Luna's Response:"""
             # Clear current memory
             if self.memory:
                 self.memory.clear()
-                print("🧹 Cleared existing memory")
+                print(f"[{datetime.now()}] Cleared existing memory")
                 logger.info("Cleared existing memory")
             
             # Add history to memory
@@ -573,11 +681,11 @@ Luna's Response:"""
                 elif entry["role"] == "ai":  # Changed from "assistant" to "ai"
                     self.memory.chat_memory.add_ai_message(entry["content"])
             
-            print(f"✅ Loaded {len(history)} messages into memory")
+            print(f"[{datetime.now()}] Loaded {len(history)} messages into memory")
             logger.info(f"Loaded {len(history)} messages into memory")
                     
         except Exception as e:
-            print(f"❌ Error loading session history: {str(e)}")
+            print(f"[{datetime.now()}] Error loading session history: {str(e)}")
             logger.error(f"Error loading session history: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
 
@@ -588,44 +696,46 @@ def initialize_luna_before_chat():
     """Initialize Luna system before starting the chat interface"""
     global luna_rag
     
-    print("🚀 Pre-initializing Luna system...")
+    print(f"[{datetime.now()}] Pre-initializing Luna system...")
     logger.info("Pre-initializing Luna system...")
     
     try:
         # Setup directories
         LunaConfig.setup_directories()
-        print("✅ Directories set up")
+        print(f"[{datetime.now()}] Directories set up")
         logger.info("Directories set up")
         
         # Initialize RAG system
         luna_rag = LunaRAG()
         if luna_rag.initialize_system():
-            print("🎉 Luna system ready for chat!")
+            print(f"[{datetime.now()}] Luna system ready for chat!")
             logger.info("Luna system ready for chat!")
             return True
         else:
-            print("❌ Failed to initialize Luna system")
+            print(f"[{datetime.now()}] Failed to initialize Luna system")
             logger.error("Failed to initialize Luna system")
             return False
     except Exception as e:
-        print(f"❌ Error during initialization: {str(e)}")
+        print(f"[{datetime.now()}] Error during initialization: {str(e)}")
         logger.error(f"Error during initialization: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         return False
-    
+
 ### ----------------------------------  main entry point when we run chainlit run main.py  ----------------------------------------
 
 # Auto-initialize when module is imported (for Chainlit)
-print("\n\n ------------------- Welcome! Luna is waking up :) Initializing... ---------------------\n\n")
+print(f"\n\n[{datetime.now()}] Welcome! Luna 🐶 is waking up :) Initializing...\n\n")
 try:
     if initialize_luna_before_chat():
-        print("✅ Luna system auto-initialized successfully!")
+        print(f"[{datetime.now()}] Luna system auto-initialized successfully!")
     else:
-        print("❌ Luna system auto-initialization failed!")
+        print(f"[{datetime.now()}] Luna system auto-initialization failed!")
 except Exception as e:
-    print(f"❌ Error during auto-initialization: {str(e)}")
+    print(f"[{datetime.now()}] Error during auto-initialization: {str(e)}")
     logger.error(f"Error during auto-initialization: {str(e)}")
     logger.error(f"Traceback: {traceback.format_exc()}")
+
+
 
 # Chainlit Application
 @cl.on_chat_start
@@ -636,7 +746,7 @@ async def start():
         
         # Check if system is pre-initialized, if not try to initialize
         if luna_rag is None or not luna_rag.is_initialized:
-            print("🔄 System not initialized, attempting initialization...")
+            print(f"[{datetime.now()}] System not initialized, attempting initialization...")
             logger.info("System not initialized, attempting initialization...")
             
             # Show loading message
@@ -649,18 +759,23 @@ async def start():
             # Try to initialize
             if not initialize_luna_before_chat():
                 await loading_msg.update(
-                    content="❌ **Setup Failed**\n\nCouldn't initialize the knowledge base. Please check:\n- PDF files are in the '../data/pdfs' directory\n- OpenAI API key is valid\n- All dependencies are installed"
+                    content="Setup Failed\n\nCouldn't initialize the knowledge base. Please check:\n- PDF files are in the '../data/pdfs' directory\n- OpenAI API key is valid\n- All dependencies are installed"
                 )
                 return
             
-            await loading_msg.update(content="✅ Luna system initialized successfully!")
+            await loading_msg.update(content="Luna system initialized successfully!")
         
-        # Generate session ID
-        session_id = str(uuid.uuid4())
+        # Use user session for consistent session management
+        session_id = cl.user_session.get("id")
+        if not session_id:
+            # Fall back to generating if not available
+            session_id = str(uuid.uuid4())
+        
+        # Store session ID consistently
         cl.user_session.set("session_id", session_id)
         
-        print(f"👋 New chat session started: {session_id}")
-        logger.info(f"New chat session started: {session_id}")
+        print(f"[{datetime.now()}] Chat session ID: {session_id}")
+        logger.info(f"Chat session ID: {session_id}")
         
         # Load existing history if any
         luna_rag.load_session_history(session_id)
@@ -674,24 +789,30 @@ I can help you with:
 • **Health and nutrition** advice
 • **General dog care** information
 
-* What would you like to know about dogs today?* 🐾"""
+What would you like to know about dogs today? 🐾"""
         
         await cl.Message(content=welcome_msg, author="Luna").send()
         
     except Exception as e:
-        print(f"❌ Error in chat start: {str(e)}")
+        print(f"[{datetime.now()}] Error in chat start: {str(e)}")
         logger.error(f"Error in chat start: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         await cl.Message(
-            content=f"❌ **Initialization Error**: {str(e)}",
+            content=f"Initialization Error: {str(e)}",
             author="System"
         ).send()
 
+conv = 0
 @cl.on_message
 async def main(message: cl.Message):
-    """Handle incoming messages"""
+    """Handle incoming messages with greeting detection"""
+    thinking_msg = None
     try:
-        global luna_rag
+        global luna_rag 
+        global conv
+        conv +=1
+        print(f"\n\n ==============x============= conversation :{conv} ==============x============= \n\n")
+        logger.info(f"\n\n ==============x============= conversation :{conv} ==============x============= \n\n")
         
         session_id = cl.user_session.get("session_id")
         if not session_id:
@@ -703,52 +824,40 @@ async def main(message: cl.Message):
         
         if luna_rag is None or not luna_rag.is_initialized:
             await cl.Message(
-                content="❌ Luna system is not initialized. Please restart the application.",
+                content="Luna system is not initialized. Please restart the application.",
                 author="System"
             ).send()
             return
         
-        # Show typing indicator
-        async with cl.Step(name="Luna is thinking...") as step:
-            step.output = "Searching knowledge base and generating response..."
-            
-            print(f"💭 Processing message from session: {session_id}")
-            logger.info(f"Processing message from session: {session_id}")
-            
-            # Get response from RAG system
-            answer, sources, response_source = luna_rag.get_response(message.content, session_id)
+        # Check if it's a greeting - if so, don't show thinking indicator
+        if luna_rag.greeting_handler.is_greeting(message.content):
+            print(f"[{datetime.now()}] Greeting detected, responding immediately")
+            logger.info("Greeting detected, responding immediately")
+        else:
+            # Show thinking indicator only for non-greetings
+            thinking_msg = cl.Message(content="🤔 Thinking...", author="Luna")
+            await thinking_msg.send()
         
-        # Prepare response with source indicator
-        source_emoji = "📚" if response_source == "PDF_SEARCH" else "🤖"
-        source_text = "PDF knowledge base" if response_source == "PDF_SEARCH" else "general AI knowledge"
+        print(f"[{datetime.now()}] Processing message from session: {session_id}")
+        logger.info(f"Processing message from session: {session_id}")
         
-        # Prepare source information
-        source_info = ""
-        if sources and response_source == "PDF_SEARCH":
-            unique_sources = set()
-            for doc in sources[:3]:  # Show top 3 sources
-                source_file = doc.metadata.get('source_file', 'Unknown')
-                unique_sources.add(source_file)
-            
-            if unique_sources:
-                source_info = f"\n\n📚 *Sources: {', '.join(unique_sources)}*"
-                print(f"📚 Response includes sources: {', '.join(unique_sources)}")
-                logger.info(f"Response includes sources: {', '.join(unique_sources)}")
+        # Get response from RAG system (now with greeting handling)
+        answer, sources, response_source = luna_rag.get_response(message.content, session_id)
         
-        # Add response source indicator
-        response_indicator = f"\n\n{source_emoji} *Response from: {source_text}*"
+        # Send response appropriately
+        if thinking_msg:
+            # Update the thinking message with the actual response
+            thinking_msg.content = answer
+            await thinking_msg.update()
+        else:
+            # Send greeting response directly
+            await cl.Message(content=answer, author="Luna").send()
         
-        # Send response
-        await cl.Message(
-            content=answer + source_info + response_indicator,
-            author="Luna"
-        ).send()
-        
-        print(f"✅ Response sent - Source: {response_source}")
+        print(f"[{datetime.now()}] Response sent - Source: {response_source}")
         logger.info(f"Response sent - Source: {response_source}")
-        
+
     except Exception as e:
-        print(f"❌ Error handling message: {str(e)}")
+        print(f"[{datetime.now()}]❌ Error handling message: {str(e)}")
         logger.error(f"Error handling message: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         await cl.Message(
@@ -768,65 +877,3 @@ async def end():
         print(f"❌ Error in chat end: {str(e)}")
         logger.error(f"Error in chat end: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
-
-# Setup and initialization functions
-def setup_luna():
-    """Setup Luna system - run this first
-       When you want to verify your PDF files and API key setup before running Chainlit.
-       As a diagnostic or bootstrap step in a script, CI/CD, or testing environment."""
-    try:
-        print("🐕 Setting up Luna Dog Expert System...")
-        
-        # Setup directories
-        LunaConfig.setup_directories()
-        print(f"✅ Created directories:")
-        print(f"   - PDF directory: {LunaConfig.PDF_DIR}")
-        print(f"   - ChromaDB directory: {LunaConfig.CHROMA_DIR}")
-        print(f"   - Chat history directory: {LunaConfig.HISTORY_DIR}")
-        
-        # Check for API key
-        if not os.getenv("OPENAI_API_KEY"):
-            print("⚠️  Please set your OPENAI_API_KEY environment variable")
-            print("   export OPENAI_API_KEY='your-api-key-here'")
-            return False
-        
-        # Check for PDFs
-        pdf_files = list(LunaConfig.PDF_DIR.glob("*.pdf"))
-        if not pdf_files:
-            print(f"⚠️  No PDF files found in {LunaConfig.PDF_DIR}")
-            print("   Please add your dog-related PDF files to this directory")
-            return False
-        
-        print(f"✅ Found {len(pdf_files)} PDF files:")
-        for pdf in pdf_files:
-            print(f"   - {pdf.name}")
-        
-        # Initialize system completely
-        if initialize_luna_before_chat():
-            print("✅ Luna system setup completed successfully!")
-            print(f"\nLuna is now ready to start chatting with {LunaConfig.MAX_RESPONSE_WORDS}-word responses!")
-            print("To start Luna, run:")
-            print("   chainlit run app.py")
-            return True
-        else:
-            print("❌ System setup failed. Check the logs for details.")
-            return False
-            
-    except Exception as e:
-        print(f"❌ Error during setup: {str(e)}")
-        logger.error(f"Error during setup: {str(e)}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        return False
-
-if __name__ == "__main__":
-    # Check if running setup
-    if len(sys.argv) > 1 and sys.argv[1] == "setup":
-        setup_luna()
-    else:
-        print("🐕 Luna Dog Expert RAG System")
-        print(f"✅ Configured for {LunaConfig.MAX_RESPONSE_WORDS}-word responses")
-        print("✅ Enhanced logging with detailed error tracebacks")
-        print("✅ Response source tracking (PDF vs AI)")
-        print("✅ Final prompt logging for debugging")
-        print("Note: When running with 'chainlit run app.py', the system will auto-initialize.")
-        print("For manual setup, run: python app.py setup")
