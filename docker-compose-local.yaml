@@ -21,14 +21,14 @@ services:
       - /etc/timezone:/etc/timezone
       - /etc/localtime:/etc/localtime
 
-    # Remove GPU requirement for local development (uncomment if you have GPU)
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [ gpu ]
+    ### Remove GPU requirement for local development (uncomment if you have GPU)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [ gpu ]
 
     working_dir: /app/scripts
     command: ["chainlit", "run", "main.py", "-w", "--host", "0.0.0.0", "--port", "8000"]
