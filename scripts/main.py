@@ -22,7 +22,7 @@ from utils.loggerSetup import get_logger
 
 
 # Get the logger
-logger = get_logger(__name__, "luna.log", console_output=os.getenv('CMD_OUTPUT') == 't')
+logger = get_logger(__name__, "luna.log", console_output=os.getenv('CMD_OUTPUT','t') == 't')
 
 
 

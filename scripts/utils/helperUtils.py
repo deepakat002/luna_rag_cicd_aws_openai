@@ -9,7 +9,7 @@ load_dotenv()
 
 
 # Get the logger
-logger = get_logger("pdfmanager", "luna.log", console_output=os.getenv('CMD_OUTPUT') == 't')
+logger = get_logger("pdfmanager", "luna.log", console_output=os.getenv('CMD_OUTPUT','t') == 't')
 
 
 class GreetingHandler:

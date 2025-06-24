@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Get the logger
-logger = get_logger("historymanager", "luna.log", console_output=os.getenv('CMD_OUTPUT') == 't')
+logger = get_logger("historymanager", "luna.log", console_output=os.getenv('CMD_OUTPUT','t') == 't')
 
 
 
