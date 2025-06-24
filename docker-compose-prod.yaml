@@ -1,0 +1,27 @@
+services:
+  chatbot_service:
+    image: "${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
+    container_name: luna
+    privileged: true
+    restart: on-failure
+    ports:
+      - "8000:8000"
+
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [ gpu ]
+
+    working_dir: /app/scripts
+    command: ["chainlit", "run", "main.py", "-w", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,0 +1,34 @@
+services:
+  chatbot_service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - DEBIAN_FRONTEND=noninteractive
+    
+    image: ragmodels
+    container_name: luna
+    privileged: true
+    restart: on-failure
+    ports:
+      - "8000:8000"
+
+    volumes:
+      # Mount entire project for live development
+      - .:/app
+      - ./data:/app/data
+      - ./scripts:/app/scripts
+      - /etc/timezone:/etc/timezone
+      - /etc/localtime:/etc/localtime
+
+    # Remove GPU requirement for local development (uncomment if you have GPU)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [ gpu ]
+
+    working_dir: /app/scripts
+    command: ["chainlit", "run", "main.py", "-w", "--host", "0.0.0.0", "--port", "8000"]
