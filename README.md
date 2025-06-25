@@ -2,3 +2,5 @@
 
 ECR
 992167236641.dkr.ecr.ap-south-1.amazonaws.com/lunachatbot
+
+test2
