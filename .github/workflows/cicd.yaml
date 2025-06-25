@@ -61,5 +61,5 @@ jobs:
          export OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
          export ECR_REGISTRY="${{ steps.login-ecr.outputs.registry }}"
          export ECR_REPOSITORY="${{ secrets.ECR_REPO }}"
-         docker-compose -f docker-compose-prod.yml down || true
-         docker-compose -f docker-compose-prod.yml up -d
+         docker-compose -f docker-compose-prod.yaml down || true
+         docker-compose -f docker-compose-prod.yaml up -d
