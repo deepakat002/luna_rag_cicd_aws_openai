@@ -1,4 +1,10 @@
-mermaid 
+# Luna 🐶 - Dog Expert RAG System
+
+This project is a Retrieval-Augmented Generation (RAG) system to answer dog-related queries using LangChain, ChromaDB, and Chainlit.
+
+Below is the flow of the system, described in a Mermaid diagram (copy-paste this into a Mermaid-enabled tool like VS Code, Typora, or Mermaid Live Editor to render visually).
+
+```mermaid
 graph TB
     subgraph "Initialization Phase"
         A[Start Luna System] --> B[Check OpenAI API Key]
