@@ -37,6 +37,15 @@ Luna is designed to be your friendly, knowledgeable companion for all things dog
 
 ```mermaid
 graph TB
+    subgraph "Data Management"
+        AD[PDF Documents] --> AE[DirectoryLoader]
+        AE --> AF[Document Chunks]
+        AF --> AG[OpenAI Embeddings]
+        AG --> AH[ChromaDB Vector Store]
+        AI[Chat History] --> AJ[Session Files]
+        AJ --> AK[Conversation Memory]
+    end
+
     subgraph "Initialization Phase"
         A[Start Luna System] --> B[Check OpenAI API Key]
         B --> C[Setup Directories]
@@ -72,12 +81,10 @@ graph TB
         AB --> AC[Ready for Next Message]
     end
 
-    subgraph "Data Management"
-        AD[PDF Documents] --> AE[DirectoryLoader]
-        AE --> AF[Document Chunks]
-        AF --> AG[OpenAI Embeddings]
-        AG --> AH[ChromaDB Vector Store]
-        AI[Chat History] --> AJ[Session Files]
-        AJ --> AK[Conversation Memory]
-    end
+    AH --> A
+    M --> N
 
+    style A fill:#e1f5fe
+    style M fill:#c8e6c9
+    style AA fill:#fff3e0
+    style P fill:#f3e5f5
