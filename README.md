@@ -1,5 +1,4 @@
-# luna_rag_cicd_aws_openai
-
+mermaid 
 graph TB
     subgraph "Initialization Phase"
         A[Start Luna System] --> B[Check OpenAI API Key]
