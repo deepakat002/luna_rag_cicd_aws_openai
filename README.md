@@ -6,6 +6,11 @@ Luna is designed to be your friendly, knowledgeable companion for all things dog
 2. Training Advice: Behavioral guidance and training techniques
 3. Health & Nutrition: Feeding guidelines and health monitoring
 4. General Care: Daily care routines and best practices
+
+---
+![Luna demo](luna_demo.gif)
+--- 
+
 ---
 
 ## ⚙️ How It Works
