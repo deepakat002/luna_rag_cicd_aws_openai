@@ -1,8 +1,39 @@
 # Luna 🐶 - Dog Expert RAG System
 
-This project is a Retrieval-Augmented Generation (RAG) system to answer dog-related queries using LangChain, ChromaDB, and Chainlit.
+Luna is designed to be your friendly, knowledgeable companion for all things dog-related. Whether you're a new dog owner or an experienced handler, Luna provides expert guidance on:
 
-Below is the flow of the system, described in a Mermaid diagram (copy-paste this into a Mermaid-enabled tool like VS Code, Typora, or Mermaid Live Editor to render visually).
+1. Breed Information: Characteristics, temperament, and care requirements
+2. Training Advice: Behavioral guidance and training techniques
+3. Health & Nutrition: Feeding guidelines and health monitoring
+4. General Care: Daily care routines and best practices
+---
+
+## ⚙️ How It Works
+
+1. **PDF Ingestion**  
+   Loads dog-related PDFs, splits them into text chunks, and stores them as vector embeddings in ChromaDB.
+
+2. **Retriever**  
+   Uses the ChromaDB vector store to find relevant chunks for any user question.
+
+3. **Chat Memory**  
+   Persists previous conversation messages (using ConversationBufferWindowMemory) to maintain context across turns.
+
+4. **Prompt**  
+   Feeds both retrieved document chunks and chat history into a carefully crafted prompt for the OpenAI chat model.
+
+5. **Greeting Handler**  
+   Detects and handles simple greetings separately from knowledge queries, providing a friendly greeting instantly.
+
+6. **Response**  
+   Generates a concise answer (≤50 words), referencing the retrieved context whenever relevant.
+
+7. **Persistence**  
+   Chat history is stored to the filesystem so users can resume conversations.
+
+---
+
+## 📐 System Architecture:
 
 ```mermaid
 graph TB
