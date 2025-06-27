@@ -81,8 +81,3 @@ graph TB
         AJ --> AK[Conversation Memory]
     end
 
-    M --> N
-    style A fill:#e1f5fe
-    style M fill:#c8e6c9
-    style AA fill:#fff3e0
-    style P fill:#f3e5f5
